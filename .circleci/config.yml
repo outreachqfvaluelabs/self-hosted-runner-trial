@@ -1,11 +1,158 @@
 version: 2.1
+
 workflows:
   testing:
     jobs:
       - runner-test
+      - cpu-stress-test:
+          requires:
+            - runner-test
+      - disk-io-test:
+          requires:
+            - runner-test
+
 jobs:
   runner-test:
     machine: true
     resource_class: outreachqfvaluelabs/my-local-runner
     steps:
-      - run: echo "Hi I'm on Runners!"
+      - run:
+          name: "Confirm runner is alive"
+          command: echo "Hi I'm on Runners!"
+
+      - run:
+          name: "System info snapshot"
+          command: |
+            echo "=== Date ===" && date
+            echo "=== Hostname ===" && hostname
+            echo "=== OS ===" && uname -a
+            echo "=== CPU ===" && sysctl -n machdep.cpu.brand_string 2>/dev/null || cat /proc/cpuinfo | grep "model name" | head -1
+            echo "=== Memory ===" && vm_stat 2>/dev/null || free -h
+            echo "=== Disk ===" && df -h
+
+      - run:
+          name: "Simulate long-running compute (60s)"
+          command: |
+            echo "Starting compute simulation..."
+            for i in $(seq 1 6); do
+              echo "  Pass $i/6 — $(date)"
+              # burn CPU for ~10 seconds per pass
+              python3 -c "
+            import time, math
+            start = time.time()
+            result = 0
+            while time.time() - start < 10:
+                result += math.sqrt(abs(hash(str(result))))
+            print(f'  Pass done, result sample: {result:.2f}')
+            "
+            done
+            echo "Compute simulation complete."
+
+      - run:
+          name: "Generate text artifact"
+          command: |
+            mkdir -p /tmp/artifacts
+            {
+              echo "=== Runner Test Report ==="
+              echo "Generated: $(date)"
+              echo "Host: $(hostname)"
+              echo "Uptime: $(uptime)"
+              echo ""
+              echo "=== Top Processes ==="
+              ps aux | sort -rk3 | head -20
+            } > /tmp/artifacts/runner-report.txt
+            echo "Artifact written: /tmp/artifacts/runner-report.txt"
+
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: runner-test-artifacts
+
+  cpu-stress-test:
+    machine: true
+    resource_class: outreachqfvaluelabs/my-local-runner
+    steps:
+      - run:
+          name: "Multi-core CPU stress (90s)"
+          command: |
+            echo "Spawning parallel workers to stress CPU..."
+            python3 -c "
+            import multiprocessing, math, time
+
+            def burn(worker_id, duration=90):
+                print(f'Worker {worker_id} started', flush=True)
+                end = time.time() + duration
+                x = 0.0
+                while time.time() < end:
+                    x = math.sqrt(abs(math.sin(x + 1)))
+                print(f'Worker {worker_id} done', flush=True)
+
+            cores = min(multiprocessing.cpu_count(), 4)
+            print(f'Using {cores} workers on {multiprocessing.cpu_count()} available cores')
+            procs = [multiprocessing.Process(target=burn, args=(i,)) for i in range(cores)]
+            for p in procs: p.start()
+            for p in procs: p.join()
+            print('All workers finished.')
+            "
+
+      - run:
+          name: "Capture CPU metrics artifact"
+          command: |
+            mkdir -p /tmp/artifacts
+            {
+              echo "=== CPU Stress Test Report ==="
+              echo "Generated: $(date)"
+              echo ""
+              echo "=== CPU Info ==="
+              sysctl -n machdep.cpu.brand_string 2>/dev/null || grep "model name" /proc/cpuinfo | head -1
+              echo "Logical CPUs: $(python3 -c 'import os; print(os.cpu_count())')"
+              echo ""
+              echo "=== Memory After Stress ==="
+              vm_stat 2>/dev/null || free -h
+              echo ""
+              echo "=== Load Average ==="
+              uptime
+            } > /tmp/artifacts/cpu-stress-report.txt
+            echo "Artifact written."
+
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: cpu-stress-artifacts
+
+  disk-io-test:
+    machine: true
+    resource_class: outreachqfvaluelabs/my-local-runner
+    steps:
+      - run:
+          name: "Disk write benchmark"
+          command: |
+            echo "Writing 100 MB test file..."
+            dd if=/dev/urandom of=/tmp/disk_test_write.bin bs=1M count=100 2>&1
+            echo "Write complete."
+
+      - run:
+          name: "Disk read benchmark"
+          command: |
+            echo "Reading back test file..."
+            dd if=/tmp/disk_test_write.bin of=/dev/null bs=1M 2>&1
+            echo "Read complete."
+            rm -f /tmp/disk_test_write.bin
+
+      - run:
+          name: "Generate disk I/O artifact"
+          command: |
+            mkdir -p /tmp/artifacts
+            {
+              echo "=== Disk I/O Test Report ==="
+              echo "Generated: $(date)"
+              echo ""
+              echo "=== Disk Usage ==="
+              df -h
+              echo ""
+              echo "=== /tmp Directory ==="
+              ls -lah /tmp | head -20
+            } > /tmp/artifacts/disk-io-report.txt
+            echo "Artifact written."
+
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: disk-io-artifacts
