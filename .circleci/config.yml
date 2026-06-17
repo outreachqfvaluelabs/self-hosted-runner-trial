@@ -14,6 +14,9 @@ workflows:
 jobs:
   runner-test:
     machine: true
+    shell: /bin/bash --noprofile --norc -eo pipefail
+    environment:
+      BASH_ENV: /dev/null
     resource_class: outreachqfvaluelabs/my-local-runner
     steps:
       - run:
@@ -59,7 +62,7 @@ jobs:
               echo "Uptime: $(uptime)"
               echo ""
               echo "=== Top Processes ==="
-              ps aux | sort -rk3 | head -20
+              ps aux | sort -rk3 | head -20 || true
             } > /tmp/artifacts/runner-report.txt
             echo "Artifact written: /tmp/artifacts/runner-report.txt"
 
@@ -69,6 +72,9 @@ jobs:
 
   cpu-stress-test:
     machine: true
+    shell: /bin/bash --noprofile --norc -eo pipefail
+    environment:
+      BASH_ENV: /dev/null
     resource_class: outreachqfvaluelabs/my-local-runner
     steps:
       - run:
@@ -120,6 +126,9 @@ jobs:
 
   disk-io-test:
     machine: true
+    shell: /bin/bash --noprofile --norc -eo pipefail
+    environment:
+      BASH_ENV: /dev/null
     resource_class: outreachqfvaluelabs/my-local-runner
     steps:
       - run:
