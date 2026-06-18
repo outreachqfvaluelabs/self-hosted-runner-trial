@@ -1,17 +1,28 @@
 version: 2.1
 
 workflows:
-  testing:
+  # testing:
+  #   jobs:
+  #     - runner-test
+  #     - cpu-stress-test:
+  #         requires:
+  #           - runner-test
+  #     - disk-io-test:
+  #         requires:
+  #           - runner-test
+  minikube-build-workflow:
     jobs:
-      - runner-test
-      - cpu-stress-test:
-          requires:
-            - runner-test
-      - disk-io-test:
-          requires:
-            - runner-test
+      - minikube-build
+
 
 jobs:
+  minikube-build:
+    docker:
+      - image: cimg/base:current
+    resource_class: outreachqfvaluelabs/minikube-runner
+    steps:
+      - run: echo "Hi I'm on a Container Runner!"
+
   runner-test:
     machine: true
     shell: /bin/bash --noprofile --norc -eo pipefail

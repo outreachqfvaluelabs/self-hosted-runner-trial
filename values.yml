@@ -1,0 +1,4 @@
+agent:
+  resourceClasses:
+    circleci/outreachqfvaluelabs/minikube-runner:
+      token: 5b8dc5187c491b98204aa553e62127d826683da758bed597f638b84e48ff166249155ff79f0786a5
