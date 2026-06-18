@@ -43,7 +43,15 @@ jobs:
             echo "=== Date ===" && date
             echo "=== Hostname ===" && hostname
             echo "=== OS ===" && uname -a
-            echo "=== CPU ===" && sysctl -n machdep.cpu.brand_string 2>/dev/null || cat /proc/cpuinfo | grep "model name" | head -1
+            echo "=== CPU ==="
+            CPU_INFO="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || true)"
+            if [ -z "$CPU_INFO" ]; then
+              CPU_INFO="$(awk -F: '/model name|Hardware|Processor/ {gsub(/^[ \t]+/, "", $2); print $2; exit}' /proc/cpuinfo 2>/dev/null || true)"
+            fi
+            if [ -z "$CPU_INFO" ]; then
+              CPU_INFO="$(lscpu 2>/dev/null | awk -F: '/Model name|Architecture/ {gsub(/^[ \t]+/, "", $2); print $2; exit}' || true)"
+            fi
+            echo "${CPU_INFO:-Unknown CPU}"
             echo "=== Memory ===" && vm_stat 2>/dev/null || free -h
             echo "=== Disk ===" && df -h
 
@@ -126,7 +134,14 @@ jobs:
               echo "Generated: $(date)"
               echo ""
               echo "=== CPU Info ==="
-              sysctl -n machdep.cpu.brand_string 2>/dev/null || grep "model name" /proc/cpuinfo | head -1
+              CPU_INFO="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || true)"
+              if [ -z "$CPU_INFO" ]; then
+                CPU_INFO="$(awk -F: '/model name|Hardware|Processor/ {gsub(/^[ \t]+/, "", $2); print $2; exit}' /proc/cpuinfo 2>/dev/null || true)"
+              fi
+              if [ -z "$CPU_INFO" ]; then
+                CPU_INFO="$(lscpu 2>/dev/null | awk -F: '/Model name|Architecture/ {gsub(/^[ \t]+/, "", $2); print $2; exit}' || true)"
+              fi
+              echo "${CPU_INFO:-Unknown CPU}"
               echo "Logical CPUs: $(python3 -c 'import os; print(os.cpu_count())')"
               echo ""
               echo "=== Memory After Stress ==="
