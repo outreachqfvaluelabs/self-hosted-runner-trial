@@ -1,18 +1,18 @@
 version: 2.1
 
 workflows:
-  # testing:
-  #   jobs:
-  #     - runner-test
-  #     - cpu-stress-test:
-  #         requires:
-  #           - runner-test
-  #     - disk-io-test:
-  #         requires:
-  #           - runner-test
-  minikube-build-workflow:
+  testing:
     jobs:
-      - minikube-build
+      - runner-test
+      - cpu-stress-test:
+          requires:
+            - runner-test
+      - disk-io-test:
+          requires:
+            - runner-test
+  # minikube-build-workflow:
+  #   jobs:
+  #     - minikube-build
 
 
 jobs:
@@ -24,11 +24,14 @@ jobs:
       - run: echo "Hi I'm on a Container Runner!"
 
   runner-test:
-    machine: true
-    shell: /bin/bash --noprofile --norc -eo pipefail
-    environment:
-      BASH_ENV: /dev/null
-    resource_class: outreachqfvaluelabs/my-local-runner
+    # machine: true
+    # shell: /bin/bash --noprofile --norc -eo pipefail
+    # environment:
+    #   BASH_ENV: /dev/null
+    # resource_class: outreachqfvaluelabs/my-local-runner
+    docker:
+      - image: cimg/base:current
+    resource_class: outreachqfvaluelabs/minikube-runner
     steps:
       - run:
           name: "Confirm runner is alive"
@@ -82,11 +85,14 @@ jobs:
           destination: runner-test-artifacts
 
   cpu-stress-test:
-    machine: true
-    shell: /bin/bash --noprofile --norc -eo pipefail
-    environment:
-      BASH_ENV: /dev/null
-    resource_class: outreachqfvaluelabs/my-local-runner
+    # machine: true
+    # shell: /bin/bash --noprofile --norc -eo pipefail
+    # environment:
+    #   BASH_ENV: /dev/null
+    # resource_class: outreachqfvaluelabs/my-local-runner
+    docker:
+      - image: cimg/base:current
+    resource_class: outreachqfvaluelabs/minikube-runner
     steps:
       - run:
           name: "Multi-core CPU stress (90s)"
@@ -136,11 +142,14 @@ jobs:
           destination: cpu-stress-artifacts
 
   disk-io-test:
-    machine: true
-    shell: /bin/bash --noprofile --norc -eo pipefail
-    environment:
-      BASH_ENV: /dev/null
-    resource_class: outreachqfvaluelabs/my-local-runner
+    # machine: true
+    # shell: /bin/bash --noprofile --norc -eo pipefail
+    # environment:
+    #   BASH_ENV: /dev/null
+    # resource_class: outreachqfvaluelabs/my-local-runner
+    docker:
+      - image: cimg/base:current
+    resource_class: outreachqfvaluelabs/minikube-runner
     steps:
       - run:
           name: "Disk write benchmark"
